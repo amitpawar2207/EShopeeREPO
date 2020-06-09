@@ -5,13 +5,12 @@ import (
 	"EShopeeREPO/shop/category"
 	"EShopeeREPO/shop/product"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 )
 
 //Customer functionality
-func Customer(custID int, db sqldb.MysqlDriver) {
+func Customer(custID int, db sqldb.MysqlDriver) error {
 	fmt.Println("Select an Option :\n1. View Categories\n2. View Products\n3. View Cart")
 	var i int
 	_, serr := fmt.Scan(&i)
@@ -21,25 +20,42 @@ func Customer(custID int, db sqldb.MysqlDriver) {
 	}
 	switch i {
 	case 1:
-		getCategoryList(custID, db)
+		err := getCategoryList(custID, db)
+		if err != nil {
+			return err
+		}
+		Customer(custID, db)
 
 	case 2:
-		getProductList(custID, db)
+		err := getProductList(custID, db)
+		if err != nil {
+			return err
+		}
+		Customer(custID, db)
 
 	case 3:
-		ViewCart(custID, false, db)
+		err := ViewCart(custID, false, db)
+		if err != nil {
+			return err
+		}
+		Customer(custID, db)
 	default:
 		Customer(custID, db)
 	}
 	cerr := db.Close()
 	if cerr != nil {
-		log.Fatal(cerr)
+		fmt.Errorf("Error while closing mysql connection ", cerr)
 	}
+	return nil
 }
 
-func getCategoryList(custID int, db sqldb.MysqlDriver) {
+func getCategoryList(custID int, db sqldb.MysqlDriver) error {
 	catList := make([]category.List, 0)
-	catList = category.GetCategoryList()
+	var gcerr error
+	catList, gcerr = category.GetCategoryList()
+	if gcerr != nil {
+		return gcerr
+	}
 	for index, item := range catList {
 		fmt.Println(strconv.Itoa(index+1) + ". " + item.CategoryName)
 	}
@@ -56,19 +72,29 @@ func getCategoryList(custID int, db sqldb.MysqlDriver) {
 	}
 
 	prodList := make([]product.ProductList, 0)
-	prodList = product.GetProductsByCategory(catList[i-1].CategoryName)
-
+	var perr error
+	prodList, perr = product.GetProductsByCategory(catList[i-1].CategoryName)
+	if perr != nil {
+		return perr
+	}
 	for index, item := range prodList {
 		fmt.Println(strconv.Itoa(index+1) + ". " + item.Name)
 	}
+	return nil
 }
 
 //ViewCart shows cart details
-func ViewCart(custID int, isAdmin bool, db sqldb.MysqlDriver) {
+func ViewCart(custID int, isAdmin bool, db sqldb.MysqlDriver) error {
 
 	//prodmdb := mongodb.GetMongoDriver()
-	cartRecords := getCartRecords(custID, false, db)
-	products := GetProductsInfo(cartRecords)
+	cartRecords, gcerr := getCartRecords(custID, false, db)
+	if gcerr != nil {
+		return gcerr
+	}
+	products, gperr := GetProductsInfo(cartRecords)
+	if gperr != nil {
+		return gperr
+	}
 	totalAmount, finalAmount := ShowBill(cartRecords, products)
 	if isAdmin {
 
@@ -78,8 +104,6 @@ func ViewCart(custID int, isAdmin bool, db sqldb.MysqlDriver) {
 		fmt.Scan(&i)
 		switch {
 		case i <= len(cartRecords):
-			fmt.Println("Inside switch i - ", i-1)
-			fmt.Println(cartRecords[i-1])
 			removeProductFromCart(cartRecords[i-1], db)
 		case i == 11111:
 			var order Order
@@ -97,6 +121,7 @@ func ViewCart(custID int, isAdmin bool, db sqldb.MysqlDriver) {
 		}
 		Customer(custID, db)
 	}
+	return nil
 }
 
 //ShowBill to display bill
@@ -126,21 +151,21 @@ func ShowBill(cartRecords []Cart, products map[string]product.Product) (float32,
 	return totalAmount, finalAmount
 }
 
-func placeOrder(order Order, db sqldb.MysqlDriver) {
+func placeOrder(order Order, db sqldb.MysqlDriver) error {
 
 	query := "INSERT INTO `orders` (`customer_id`, `final_amount`, `discount`,  `checkout_date`) VALUES (?,?,?,?);"
 	rows, qerr := db.Execute(query, order.CustomerID, order.FinalAmount, order.Discount, order.CheckoutDate)
 	if qerr != nil {
-		log.Fatal(qerr)
+		return fmt.Errorf("Error while placing order ")
 	}
 	num, rerr := rows.RowsAffected()
 	if num < 0 || rerr != nil {
-		fmt.Println("No rows affected")
-		log.Fatal(rerr)
+		return fmt.Errorf("Error while placing order ")
 	}
+	return nil
 }
 
-func getCartRecords(custID int, checkoutFlag bool, db sqldb.MysqlDriver) []Cart {
+func getCartRecords(custID int, checkoutFlag bool, db sqldb.MysqlDriver) ([]Cart, error) {
 
 	cartRecords := make([]Cart, 0)
 
@@ -149,47 +174,53 @@ func getCartRecords(custID int, checkoutFlag bool, db sqldb.MysqlDriver) []Cart 
 	var amt float32
 	rows, serr := db.Query("SELECT cart_id, product_id, product_quantity, amount FROM cart WHERE customer_id=? AND checkout=?", custID, checkoutFlag)
 	if serr != nil {
-		log.Fatal(serr)
+		return nil, fmt.Errorf("Error while fecting cart details")
 	}
 	for rows.Next() {
 		err := rows.Scan(&cID, &pID, &pQuantity, &amt)
 		if err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("Error while fecting cart details")
 		}
 		cartRecords = append(cartRecords, Cart{CartID: cID, CustomerID: custID, ProductID: pID, ProductQuantity: pQuantity, Amount: amt})
 	}
-	return cartRecords
+	return cartRecords, nil
 }
 
 //GetProductsInfo to create productinfo map
-func GetProductsInfo(records []Cart) map[string]product.Product {
+func GetProductsInfo(records []Cart) (map[string]product.Product, error) {
 
 	products := make(map[string]product.Product)
 	for _, item := range records {
-		prod := product.GetProductDetails("", item.ProductID)
+		prod, err := product.GetProductDetails("", item.ProductID)
+		if err != nil {
+			return nil, err
+		}
 		products[prod.ID] = prod
 	}
-	return products
+	return products, nil
 }
 
-func removeProductFromCart(cartRecord Cart, db sqldb.MysqlDriver) {
+func removeProductFromCart(cartRecord Cart, db sqldb.MysqlDriver) error {
 
 	query := "DELETE FROM cart WHERE cart_id = ?;"
 	rows, qerr := db.Execute(query, cartRecord.CartID)
 	if qerr != nil {
-		log.Fatal(qerr)
+		return fmt.Errorf("Error while removing item from cart")
 	}
 
 	num, rerr := rows.RowsAffected()
 	if num <= 0 || rerr != nil {
-		fmt.Println("No rows affected")
-		log.Fatal(rerr)
+		return fmt.Errorf("Error while removing item from cart")
 	}
 
-	ViewCart(cartRecord.CustomerID, false, db)
+	err := ViewCart(cartRecord.CustomerID, false, db)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func updateCartRecords(cartRecords []Cart, checkoutDate time.Time, db sqldb.MysqlDriver) {
+func updateCartRecords(cartRecords []Cart, checkoutDate time.Time, db sqldb.MysqlDriver) error {
 
 	str := "("
 	for i, id := range cartRecords {
@@ -202,13 +233,13 @@ func updateCartRecords(cartRecords []Cart, checkoutDate time.Time, db sqldb.Mysq
 	query := "UPDATE cart SET checkout = ?, updatedat = ? WHERE `cart_id` IN " + str + ";"
 	rows, qerr := db.Execute(query, true, checkoutDate)
 	if qerr != nil {
-		log.Fatal(qerr)
+		return fmt.Errorf("Error while updating item in cart")
 	}
 
 	num, rerr := rows.RowsAffected()
 	if num <= 0 || rerr != nil {
-		fmt.Println("No rows affected")
-		log.Fatal(rerr)
+		return fmt.Errorf("Error while updating item in cart")
 	}
 
+	return nil
 }

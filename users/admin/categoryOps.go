@@ -2,6 +2,7 @@ package admin
 
 import (
 	"EShopeeREPO/shop/category"
+	"EShopeeREPO/shop/product"
 	"fmt"
 	"strconv"
 )
@@ -31,9 +32,34 @@ func categoryWork() {
 
 func viewCategoryList() {
 	list := make([]category.List, 0)
-	list = category.GetCategoryList()
+	var err error
+	list, err = category.GetCategoryList()
+	if err != nil {
+		fmt.Println(err)
+		categoryWork()
+	}
 	for index, item := range list {
 		fmt.Println(strconv.Itoa(index+1) + ". " + item.CategoryName)
+	}
+	fmt.Println("Enter Category number to view products from the Category or press 00 to back:")
+	var i int
+	_, err = fmt.Scan(&i)
+	if err != nil {
+		fmt.Println("Please Enter valid Input...")
+		category.GetCategoryList()
+	}
+	if i == 00 {
+		categoryWork()
+	}
+
+	prodList := make([]product.ProductList, 0)
+	var perr error
+	prodList, perr = product.GetProductsByCategory(list[i-1].CategoryName)
+	if perr != nil {
+		fmt.Println(perr)
+	}
+	for index, item := range prodList {
+		fmt.Println(strconv.Itoa(index+1) + ". " + item.Name)
 	}
 	categoryWork()
 }
@@ -45,7 +71,12 @@ func addNewCategory() {
 
 func removeCategory() {
 	list := make([]category.List, 0)
-	list = category.GetCategoryList()
+	var err error
+	list, err = category.GetCategoryList()
+	if err != nil {
+		fmt.Println(err)
+		categoryWork()
+	}
 	for index, item := range list {
 		fmt.Println(strconv.Itoa(index+1) + ". " + item.CategoryName)
 	}

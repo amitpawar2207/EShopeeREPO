@@ -3,7 +3,6 @@ package customer
 import (
 	"EShopeeREPO/common/components/sqldb"
 	"fmt"
-	"log"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -25,15 +24,15 @@ func Login() {
 	var id int
 	rows, err := db.Query("SELECT id,password,role,name FROM users WHERE username=?", user.UserName)
 	if err != nil {
-		fmt.Println("No rows affected")
-		log.Fatal(err)
+		fmt.Println("Login Failed")
+		Login()
 	}
 
 	if rows.Next() {
 		serr := rows.Scan(&id, &databasePassword, &role, &name)
 		if serr != nil {
 			fmt.Println("error while scanning password")
-			log.Fatal(serr)
+			Login()
 		}
 	} else {
 		fmt.Println("User is not registered.")
@@ -41,7 +40,8 @@ func Login() {
 
 	cerr := bcrypt.CompareHashAndPassword([]byte(databasePassword), []byte(user.Password))
 	if cerr != nil {
-		fmt.Println("error while comparing passwords")
+		fmt.Println("Incorrect Password")
+		Login()
 	} else {
 		fmt.Println("Welcome, to Shopee", name)
 		Customer(id, db)

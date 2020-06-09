@@ -2,11 +2,11 @@ package mongodb
 
 import (
 	"EShopeeREPO/common/factory"
-	"log"
+	"fmt"
 )
 
 //GetMongoDriver to get mongo connection
-func GetMongoDriver() MongoDriver {
+func GetMongoDriver() (MongoDriver, error) {
 	var mdbC MDBConfig
 	mdbC.DBName = factory.MongoDBDatabaseName
 	mdbC.URL = factory.MongoDBURL
@@ -15,7 +15,7 @@ func GetMongoDriver() MongoDriver {
 
 	cerr := prodmdb.Init(&mdbC)
 	if cerr != nil {
-		log.Fatal(cerr)
+		return prodmdb, fmt.Errorf("Error while initializing mongo connection ", cerr)
 	}
-	return prodmdb
+	return prodmdb, nil
 }

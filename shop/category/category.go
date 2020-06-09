@@ -3,7 +3,6 @@ package category
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -25,7 +24,8 @@ func readCategoryName() string {
 	fmt.Println("enter category Name : ")
 	text, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("error while reading category name ")
+		readCategoryName()
 	}
 	return strings.TrimRight(text, "\n")
 }

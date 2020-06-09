@@ -3,7 +3,7 @@ package sqldb
 import (
 	"EShopeeREPO/common/factory"
 	"database/sql"
-	"log"
+	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -23,7 +23,7 @@ func (obj *MysqlDriver) Init(conf *SQLDBConfg) error {
 	//open connection
 	obj.db, err = sql.Open(conf.DriverName, str)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("Error while connecting mysql database ")
 	} else {
 		obj.db.SetMaxOpenConns(conf.MaxOpenCon)
 

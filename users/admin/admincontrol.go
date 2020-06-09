@@ -3,7 +3,6 @@ package admin
 import (
 	"EShopeeREPO/common/components/sqldb"
 	"fmt"
-	"log"
 )
 
 //AdminWork funcs
@@ -38,6 +37,6 @@ func AdminWork() {
 	}
 	cerr := db.Close()
 	if cerr != nil {
-		log.Fatal(cerr)
+		fmt.Println("Error while closing db connection")
 	}
 }

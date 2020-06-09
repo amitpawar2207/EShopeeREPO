@@ -3,7 +3,6 @@ package customer
 import (
 	"EShopeeREPO/common/components/sqldb"
 	"fmt"
-	"log"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -36,10 +35,11 @@ func SignUp() {
 		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 		if err != nil {
 			fmt.Println("unable to incrypt password")
-			log.Fatal(err)
+			SignUp()
 		}
 	} else {
-		log.Fatal(uerr)
+		fmt.Println("Failed to signup")
+		SignUp()
 	}
 
 	//create new user
@@ -47,24 +47,27 @@ func SignUp() {
 
 	sqlresult, eerr := db.Execute(query, user.Name, user.ContactNumber, user.Address, user.UserName, string(hashedPassword), user.Role, user.EmailAddress)
 	if eerr != nil {
-		log.Fatal(eerr)
+		fmt.Println("Failed to Signup ")
+		SignUp()
 	}
 	num, rerr := sqlresult.RowsAffected()
 	if num < 0 || rerr != nil {
-		fmt.Println("No rows affected")
-		log.Fatal(rerr)
+		fmt.Println("Failed to Signup ")
+		SignUp()
 	}
 
 	var id int
 	rows, serr := db.Query("SELECT id FROM users WHERE username=?", user.UserName)
 	if serr != nil {
-		log.Fatal(serr)
+		fmt.Println("Failed to Signup ")
+		SignUp()
 	}
 
 	if rows.Next() {
 		err := rows.Scan(&id)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println("Failed to Signup ")
+			SignUp()
 		}
 	}
 

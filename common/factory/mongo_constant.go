@@ -9,7 +9,7 @@ const ProductCollection = "product"
 //Database COnfigurations --
 
 //MongoDBDatabaseName constant
-const MongoDBDatabaseName = ""
+const MongoDBDatabaseName = "mymongo"
 
 //MongoDBURL constant
-const MongoDBURL = ""
+const MongoDBURL = "127.0.0.1:27017"

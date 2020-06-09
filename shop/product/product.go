@@ -3,7 +3,6 @@ package product
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -28,35 +27,40 @@ func (product *Product) readProductData() {
 	fmt.Println("Enter Product Name : ")
 	name, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Error while reading product data ")
+		product.readProductData()
 	}
 	product.Name = strings.TrimRight(name, "\n")
 
 	fmt.Println("Enter Brand Name : ")
 	brand, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Error while reading product data ")
+		product.readProductData()
 	}
 	product.Brand = strings.TrimRight(brand, "\n")
 
 	fmt.Println("Enter Category Name : ")
 	category, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Error while reading product data ")
+		product.readProductData()
 	}
 	product.Category = strings.TrimRight(category, "\n")
 
 	fmt.Println("Enter Product Descrption : ")
 	desc, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Error while reading product data ")
+		product.readProductData()
 	}
 	product.Description = strings.TrimRight(desc, "\n")
 
 	fmt.Println("Enter Product Price : ")
 	_, perr := fmt.Scanf("%f", &price)
 	if perr != nil {
-		log.Fatal(perr)
+		fmt.Println("Error while reading product data ")
+		product.readProductData()
 	}
 	product.Price = price
 
