@@ -4,7 +4,6 @@ import (
 	"EShopeeREPO/common/components/sqldb"
 	"EShopeeREPO/users/customer"
 	"fmt"
-	"log"
 )
 
 func viewCustomerDetails(user customer.User) {
@@ -15,7 +14,11 @@ func viewCustomerDetails(user customer.User) {
 }
 
 func customerWork(db sqldb.MysqlDriver) {
-	userList := getCustomerList()
+	userList, err := getCustomerList()
+	if err != nil {
+		fmt.Println("Failed to fetch customer List")
+		AdminWork()
+	}
 	for index, user := range userList {
 		fmt.Println(index+1, ".", user.Name)
 	}
@@ -43,7 +46,7 @@ func customerWork(db sqldb.MysqlDriver) {
 
 }
 
-func getCustomerList() []customer.User {
+func getCustomerList() ([]customer.User, error) {
 	fmt.Println("Customer List:")
 	var mdb sqldb.MysqlDriver
 	sdbcf := sqldb.GetSQLDBConfig()
@@ -57,7 +60,7 @@ func getCustomerList() []customer.User {
 
 	rows, serr := mdb.Query(query, "customer")
 	if serr != nil {
-		log.Fatal(serr)
+
 	}
 
 	for rows.Next() {
@@ -77,7 +80,7 @@ func getCustomerList() []customer.User {
 		userList = append(userList, usr)
 	}
 
-	return userList
+	return userList, nil
 }
 
 //ViewCutomerBills shows details of bills
@@ -88,13 +91,13 @@ func ViewCutomerBills(custID int) {
 
 	err := mdb.Init(&sdbcf)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("Failed to view customer bill ", err))
 	}
 
 	oQuery := "SELECT checkout_date FROM orders WHERE customer_id=? order by checkout_date;"
 	orows, serr := mdb.Query(oQuery, custID)
 	if serr != nil {
-		log.Fatal(serr)
+		fmt.Println(fmt.Errorf("Failed to view customer bill ", serr))
 	}
 
 	dates := make([]string, 0)
@@ -104,8 +107,6 @@ func ViewCutomerBills(custID int) {
 		dates = append(dates, date)
 	}
 
-	fmt.Println("dates - ")
-	fmt.Println(dates)
 	for index, date := range dates {
 		fmt.Println(index+1, ". billed date -", date)
 	}
@@ -113,16 +114,20 @@ func ViewCutomerBills(custID int) {
 	var k int
 	fmt.Scan(&k)
 
-	showbill(dates[k-1], mdb)
-
+	berr := showbill(dates[k-1], mdb)
+	if berr != nil {
+		fmt.Println(fmt.Errorf("Error while showing bill details"))
+		customerWork(mdb)
+	}
+	customerWork(mdb)
 }
 
-func showbill(date string, mdb sqldb.MysqlDriver) {
+func showbill(date string, mdb sqldb.MysqlDriver) error {
 	data := make([]customer.Cart, 0)
 	cQuery := "SELECT cart_id, product_id, product_quantity, amount FROM cart WHERE  checkout = ? AND updatedat = ? ;"
 	crows, cerr := mdb.Query(cQuery, true, date)
 	if cerr != nil {
-		log.Fatal(cerr)
+		return fmt.Errorf("Failed to fetch bill data ", cerr)
 	}
 
 	var cID, prodQuant int
@@ -138,8 +143,10 @@ func showbill(date string, mdb sqldb.MysqlDriver) {
 		data = append(data, cData)
 	}
 
-	fmt.Println("data - ")
-	fmt.Println(data)
-	products := customer.GetProductsInfo(data)
+	products, err := customer.GetProductsInfo(data)
+	if err != nil {
+		return fmt.Errorf("Error while fetching data")
+	}
 	customer.ShowBill(data, products)
+	return nil
 }

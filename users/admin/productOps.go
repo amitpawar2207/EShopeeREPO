@@ -33,7 +33,12 @@ func addNewProduct() {
 
 func removeProduct() {
 	list := make([]product.ProductList, 0)
-	list = product.GetProductList()
+	var err error
+	list, err = product.GetProductList()
+	if err != nil {
+		fmt.Println(err)
+		productWork()
+	}
 	for index, item := range list {
 		fmt.Println(strconv.Itoa(index+1) + ". " + item.Name)
 	}
@@ -48,7 +53,12 @@ func removeProduct() {
 
 func viewProductList() {
 	list := make([]product.ProductList, 0)
-	list = product.GetProductList()
+	var err error
+	list, err = product.GetProductList()
+	if err != nil {
+		fmt.Println(err)
+		productWork()
+	}
 	for index, item := range list {
 		fmt.Println(strconv.Itoa(index) + ". " + item.Name)
 	}
@@ -58,19 +68,28 @@ func viewProductList() {
 
 func updateProduct() {
 	list := make([]product.ProductList, 0)
-	list = product.GetProductList()
+	var err error
+	list, err = product.GetProductList()
+	if err != nil {
+		fmt.Println(err)
+		productWork()
+	}
 	for index, item := range list {
 		fmt.Println(strconv.Itoa(index+1) + ". " + item.Name)
 	}
 
 	fmt.Println("Enter Product number to update product info : ")
 	var i int
-	_, err := fmt.Scan(&i)
-	if err != nil {
+	_, serr := fmt.Scan(&i)
+	if serr != nil {
 		fmt.Println("Please Enter valid Input...")
 		updateProduct()
 	}
-	prod := product.GetProductDetails(list[i-1].Name, "")
+	prod, perr := product.GetProductDetails(list[i-1].Name, "")
+	if perr != nil {
+		fmt.Println(perr)
+		productWork()
+	}
 	product.UpdateProductData(prod, prod.Name)
 	productWork()
 }

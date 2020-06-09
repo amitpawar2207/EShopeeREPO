@@ -4,7 +4,7 @@ import (
 	"EShopeeREPO/common/components/mongodb"
 	"EShopeeREPO/common/factory"
 	"encoding/json"
-	"log"
+	"fmt"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -17,14 +17,10 @@ type List struct {
 //Create category
 func (obj *Category) Create() error {
 
-	catmdb := mongodb.GetMongoDriver()
-
-	count, err := catmdb.Count(factory.CategoryCollection)
-	if err != nil {
-		log.Fatal(err)
+	catmdb, merr := mongodb.GetMongoDriver()
+	if merr != nil {
+		return merr
 	}
-
-	obj.CategoryID = count + 1
 
 	ierr := catmdb.Insert(factory.CategoryCollection, &obj)
 	if ierr != nil {
@@ -35,9 +31,12 @@ func (obj *Category) Create() error {
 }
 
 //GetCategoryList all
-func GetCategoryList() []List {
+func GetCategoryList() ([]List, error) {
 
-	catmdb := mongodb.GetMongoDriver()
+	catmdb, mgerr := mongodb.GetMongoDriver()
+	if mgerr != nil {
+		return nil, mgerr
+	}
 
 	selectField := bson.M{
 		"_id":          0,
@@ -46,26 +45,29 @@ func GetCategoryList() []List {
 
 	result, err := catmdb.Find(factory.CategoryCollection, nil, selectField, 0, 0)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Error while finding categories in category collection")
 	}
 
 	dbresult := make([]List, 0)
 	byteData, merr := json.Marshal(result)
 	if merr != nil {
-		log.Fatal(merr)
+		return nil, fmt.Errorf("Error while marshaling data ", merr)
 	}
 	umerr := json.Unmarshal(byteData, &dbresult)
 	if umerr != nil {
-		log.Fatal(umerr)
+		return nil, fmt.Errorf("Error while unmarshaling data ", umerr)
 	}
 
-	return dbresult
+	return dbresult, nil
 
 }
 
 //RemoveCategory from Documents
-func RemoveCategory(categoryName string) {
-	catmdb := mongodb.GetMongoDriver()
+func RemoveCategory(categoryName string) error {
+	catmdb, merr := mongodb.GetMongoDriver()
+	if merr != nil {
+		return merr
+	}
 
 	whereQuery := bson.M{
 		"categoryname": categoryName,
@@ -73,6 +75,8 @@ func RemoveCategory(categoryName string) {
 
 	err := catmdb.Remove(factory.CategoryCollection, whereQuery)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("Error while removing data ", err)
 	}
+
+	return nil
 }

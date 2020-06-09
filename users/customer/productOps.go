@@ -6,16 +6,18 @@ import (
 	"EShopeeREPO/common/factory"
 	"EShopeeREPO/shop/product"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
 )
 
-func getProductList(custID int, db sqldb.MysqlDriver) {
+func getProductList(custID int, db sqldb.MysqlDriver) error {
 	list := make([]product.ProductList, 0)
-	list = product.GetProductList()
+	list, err := product.GetProductList()
+	if err != nil {
+		return err
+	}
 	for index, item := range list {
 		fmt.Println(strconv.Itoa(index+1) + ". " + item.Name)
 	}
@@ -23,11 +25,14 @@ func getProductList(custID int, db sqldb.MysqlDriver) {
 	var i int
 	fmt.Scan(&i)
 	showProductDetails(list[i-1].Name, custID, db)
-
+	return nil
 }
 
-func showProductDetails(productName string, custID int, db sqldb.MysqlDriver) {
-	product := product.GetProductDetails(productName, "")
+func showProductDetails(productName string, custID int, db sqldb.MysqlDriver) error {
+	product, gperr := product.GetProductDetails(productName, "")
+	if gperr != nil {
+		return gperr
+	}
 	fmt.Println("Product Details :")
 	fmt.Println("Product Name : ", product.Name)
 	fmt.Println("Product Brand : ", product.Brand)
@@ -38,16 +43,25 @@ func showProductDetails(productName string, custID int, db sqldb.MysqlDriver) {
 	if product.Quantity == 0 {
 		fmt.Println("This Product is currently unavailable.")
 	} else {
-		fmt.Println("Enter 1 to add this product to cart.")
+		fmt.Println("Enter 1 to add this product to cart or press 00 to Back")
 		var i int
-		fmt.Scan(&i)
 		var quantity int
-		if i == 1 {
+		_, serr := fmt.Scan(&i)
+		if serr != nil {
+			showProductDetails(productName, custID, db)
+		}
+		switch i {
+		case 1:
 			quantity = acceptQuanity(product.Quantity)
 			addProductToCart(product, quantity, custID, db)
+		case 00:
+			getProductList(custID, db)
+		default:
+			getProductList(custID, db)
 		}
 	}
 	Customer(custID, db)
+	return nil
 }
 
 func acceptQuanity(availableQuantity int) int {
@@ -61,31 +75,30 @@ func acceptQuanity(availableQuantity int) int {
 	return quantity
 }
 
-func addProductToCart(product product.Product, quanity, custID int, db sqldb.MysqlDriver) {
+func addProductToCart(product product.Product, quanity, custID int, db sqldb.MysqlDriver) error {
 
 	//check for existing products to avoid duplicate entries
 
 	var cID, pQuant int
 	row, aerr := db.Query("SELECT cart_id, product_quantity from cart where customer_id=? AND product_id=? AND checkout=?", custID, product.ID, false)
 	if aerr != nil {
-		log.Fatal(aerr)
+		return fmt.Errorf("Error while adding product to cart ")
 	}
 	if row.Next() {
 		serr := row.Scan(&cID, &pQuant)
 		if serr != nil {
-			log.Fatal(serr)
+			return fmt.Errorf("Error while adding product to cart ")
 		}
 		newPQuant := quanity + pQuant
 		newAmt := float32(newPQuant) * product.Price
 		query := "UPDATE cart SET product_quantity = ?, amount = ?, updatedat = ? WHERE cart_id = ? AND product_id = ?"
 		res, eerr := db.Execute(query, newPQuant, newAmt, time.Now(), cID, product.ID)
 		if eerr != nil {
-			log.Fatal(eerr)
+			return fmt.Errorf("Error while adding product to cart ")
 		}
 		num, rerr := res.RowsAffected()
 		if num < 0 || rerr != nil {
-			fmt.Println("No rows affected")
-			log.Fatal(rerr)
+			return fmt.Errorf("Error while adding product to cart ")
 		}
 	} else {
 		pQuant = quanity
@@ -93,16 +106,18 @@ func addProductToCart(product product.Product, quanity, custID int, db sqldb.Mys
 		query := "INSERT INTO `cart` (`customer_id`, `product_id`, `product_quantity`, `amount`, `checkout`, `updatedat`) VALUES (?,?,?,?,?,?);"
 		res, eerr := db.Execute(query, custID, product.ID, quanity, amount, false, time.Now())
 		if eerr != nil {
-			log.Fatal(eerr)
+			return fmt.Errorf("Error while adding product to cart ")
 		}
 		num, rerr := res.RowsAffected()
 		if num < 0 || rerr != nil {
-			fmt.Println("No rows affected")
-			log.Fatal(rerr)
+			return fmt.Errorf("Error while adding product to cart ")
 		}
 	}
 
-	prodmdb := mongodb.GetMongoDriver()
+	prodmdb, mgerr := mongodb.GetMongoDriver()
+	if mgerr != nil {
+		return mgerr
+	}
 
 	//update product quantity
 	mquery := map[string]interface{}{
@@ -116,7 +131,8 @@ func addProductToCart(product product.Product, quanity, custID int, db sqldb.Mys
 	}
 	uerr := prodmdb.Update(factory.ProductCollection, mquery, value)
 	if uerr != nil {
-		log.Fatal(uerr)
+		return fmt.Errorf("Error while adding product to cart ")
 	}
 	fmt.Println("Product added to the cart.")
+	return nil
 }

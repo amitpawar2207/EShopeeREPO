@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -19,31 +18,38 @@ type ProductList struct {
 }
 
 //Create product
-func (obj *Product) Create() {
+func (obj *Product) Create() error {
 
-	prodmdb := mongodb.GetMongoDriver()
+	prodmdb, merr := mongodb.GetMongoDriver()
+	if merr != nil {
+		return merr
+	}
 
 	ierr := prodmdb.Insert(factory.ProductCollection, &obj)
 	if ierr != nil {
-		log.Fatal(ierr)
+		return fmt.Errorf("Error while inserting product data in product collection ", ierr)
 	}
 	fmt.Println("New product", obj.Name, "created")
+	return nil
 }
 
-func readString() string {
+func readString() (string, error) {
 	reader := bufio.NewReader(os.Stdin)
 	str, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("Error while reading string data")
 	}
-	return strings.TrimRight(str, "\n")
+	return strings.TrimRight(str, "\n"), nil
 
 }
 
 //GetProductList all
-func GetProductList() []ProductList {
+func GetProductList() ([]ProductList, error) {
 
-	prodmdb := mongodb.GetMongoDriver()
+	prodmdb, mgerr := mongodb.GetMongoDriver()
+	if mgerr != nil {
+		return nil, fmt.Errorf("Error while initializing mongo connection ", mgerr)
+	}
 
 	selectField := bson.M{
 		"_id":  0,
@@ -52,29 +58,33 @@ func GetProductList() []ProductList {
 
 	result, err := prodmdb.Find(factory.ProductCollection, nil, selectField, 0, 0)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Error while fetching product data from product collection ", err)
 	}
 
 	dbresult := make([]ProductList, 0)
 	byteData, merr := json.Marshal(result)
 	if merr != nil {
-		log.Fatal(merr)
+		return nil, fmt.Errorf("Error while marshaling product data ", merr)
 	}
 	umerr := json.Unmarshal(byteData, &dbresult)
 	if umerr != nil {
-		log.Fatal(umerr)
+		return nil, fmt.Errorf("Error while unmarshaling product data ", merr)
 	}
 
-	return dbresult
+	return dbresult, nil
 }
 
 //UpdateProductData of product
-func UpdateProductData(prod Product, oldName string) {
-	prodmdb := mongodb.GetMongoDriver()
+func UpdateProductData(prod Product, oldName string) error {
+	prodmdb, mgerr := mongodb.GetMongoDriver()
+	if mgerr != nil {
+		return mgerr
+	}
 	fmt.Println("Select option to edit : ")
 	fmt.Println("1. Product Name\n2. Brand\n3. Category\n4. Description\n5. Quantity\n6. Price")
 	var i int
-	_, err := fmt.Scan(&i)
+	var err error
+	_, err = fmt.Scan(&i)
 	if err != nil {
 		fmt.Println("Please Enter valid Input...")
 		UpdateProductData(prod, oldName)
@@ -83,27 +93,47 @@ func UpdateProductData(prod Product, oldName string) {
 	switch i {
 	case 1:
 		fmt.Println("Enter new name : ")
-		prod.Name = readString()
+		prod.Name, err = readString()
+		if err != nil {
+			fmt.Println(err)
+			UpdateProductData(prod, oldName)
+		}
 	case 2:
 		fmt.Println("Enter new brand name : ")
-		prod.Brand = readString()
+		prod.Brand, err = readString()
+		if err != nil {
+			fmt.Println(err)
+			UpdateProductData(prod, oldName)
+		}
 	case 3:
 		fmt.Println("Enter new Category name : ")
-		prod.Category = readString()
+		prod.Category, err = readString()
+		if err != nil {
+			fmt.Println(err)
+			UpdateProductData(prod, oldName)
+		}
 	case 4:
 		fmt.Println("Enter new product description : ")
-		prod.Description = readString()
+		prod.Description, err = readString()
+		if err != nil {
+			fmt.Println(err)
+			UpdateProductData(prod, oldName)
+		}
 	case 5:
 		fmt.Println("Enter new quantity : ")
 		var q int
-		fmt.Scan(&q)
+		_, serr := fmt.Scan(&q)
+		if serr != nil {
+			fmt.Println(fmt.Errorf("Error while scanning quantity "))
+			UpdateProductData(prod, oldName)
+		}
 		prod.Quantity = q
 	case 6:
 		fmt.Println("Enter new price : ")
 		var price float32
 		_, perr := fmt.Scanf("%f", &price)
 		if perr != nil {
-			log.Fatal(perr)
+			fmt.Println(fmt.Errorf("Error while scanning price "))
 		}
 		prod.Price = price
 	default:
@@ -123,29 +153,39 @@ func UpdateProductData(prod Product, oldName string) {
 			"price":       prod.Price,
 		},
 	}
-	prodmdb.Update(factory.ProductCollection, query, value)
+	uerr := prodmdb.Update(factory.ProductCollection, query, value)
+	if uerr != nil {
+		return fmt.Errorf("Error while updating product data ", uerr)
+	}
+	return nil
 }
 
 //RemoveProduct from Documents
-func RemoveProduct(productName string) {
+func RemoveProduct(productName string) error {
 
-	prodmdb := mongodb.GetMongoDriver()
-
+	prodmdb, mgerr := mongodb.GetMongoDriver()
+	if mgerr != nil {
+		return mgerr
+	}
 	whereQuery := bson.M{
 		"name": productName,
 	}
 
 	err := prodmdb.Remove(factory.ProductCollection, whereQuery)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Errorf("Error while removing product from product collection ", err)
 	}
+
+	return nil
 }
 
 //GetProductsByCategory product list
-func GetProductsByCategory(categoryName string) []ProductList {
+func GetProductsByCategory(categoryName string) ([]ProductList, error) {
 
-	prodmdb := mongodb.GetMongoDriver()
-
+	prodmdb, mgerr := mongodb.GetMongoDriver()
+	if mgerr != nil {
+		return nil, mgerr
+	}
 	whereQuery := bson.M{
 		"category": categoryName,
 	}
@@ -157,26 +197,28 @@ func GetProductsByCategory(categoryName string) []ProductList {
 
 	result, err := prodmdb.Find(factory.ProductCollection, whereQuery, selectQeury, 0, 0)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Error while fetching product data from product collection ", err)
 	}
 
 	dbresult := make([]ProductList, 0)
 	byteData, merr := json.Marshal(result)
 	if merr != nil {
-		log.Fatal(merr)
+		return nil, fmt.Errorf("Error while marshaling product data ", merr)
 	}
 	umerr := json.Unmarshal(byteData, &dbresult)
 	if umerr != nil {
-		log.Fatal(umerr)
+		return nil, fmt.Errorf("Error while marshaling product data ", umerr)
 	}
-	return dbresult
+	return dbresult, nil
 }
 
 //GetProductDetails return details about Product
-func GetProductDetails(productName, productID string) Product {
+func GetProductDetails(productName, productID string) (Product, error) {
 
-	prodmdb := mongodb.GetMongoDriver()
-
+	prodmdb, mgerr := mongodb.GetMongoDriver()
+	if mgerr != nil {
+		return Product{}, fmt.Errorf("Error while initializing mongo connection ", mgerr)
+	}
 	var whereQuery bson.M
 	if productID == "" {
 		whereQuery = bson.M{
@@ -200,19 +242,19 @@ func GetProductDetails(productName, productID string) Product {
 
 	result, err := prodmdb.Find(factory.ProductCollection, whereQuery, selectQeury, 0, 1)
 	if err != nil {
-		log.Fatal(err)
+		return Product{}, fmt.Errorf("Error while fetching product data from product collection ", err)
 	}
 
 	dbresult := make([]Product, 0)
 	byteData, merr := json.Marshal(result)
 	if merr != nil {
-		log.Fatal(merr)
+		return Product{}, fmt.Errorf("Error while marshaling product data ", merr)
 	}
 
 	umerr := json.Unmarshal(byteData, &dbresult)
 	if umerr != nil {
-		log.Fatal(umerr)
+		return Product{}, fmt.Errorf("Error while unmarshaling product data ", umerr)
 	}
 
-	return dbresult[0]
+	return dbresult[0], nil
 }

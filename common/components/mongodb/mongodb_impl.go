@@ -1,7 +1,7 @@
 package mongodb
 
 import (
-	"log"
+	"fmt"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -87,7 +87,7 @@ func (obj *MongoDriver) Count(collection string) (int, error) {
 func (obj *MongoDriver) Find(collection string, query map[string]interface{}, selectField map[string]interface{}, skip, limit int) (ret []interface{}, err error) {
 	err = obj.Conn.C(collection).Find(query).Select(bson.M(selectField)).Skip(skip).Limit(limit).All(&ret)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Error while finding data")
 	}
 	return ret, nil
 }
