@@ -4,19 +4,19 @@ package factory
 const MySQLDriveName = "mysql"
 
 //MySQLDBUserName constant
-const MySQLDBUserName = "root"
+const MySQLDBUserName = ""
 
 //MySQLDBPassword constant
-const MySQLDBPassword = "amit2207"
+const MySQLDBPassword = ""
 
 //MySQLDBPort constant
-const MySQLDBPort = "3306"
+const MySQLDBPort = ""
 
 //MySQLHost constant
-const MySQLHost = "127.0.0.1"
+const MySQLHost = ""
 
 //MySQLDBName constant
-const MySQLDBName = "amit"
+const MySQLDBName = ""
 
 //MaxOpenConnections constant
 const MaxOpenConnections = 10
